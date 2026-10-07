@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Simulation des parcours marchand, livreur et client. WhatsApp est la coque sociale, l'app est l'OS commande et livraison.">
+<title>App marchands-livreurs — simulation des parcours</title>
+<style>
+  :root {
+    --green: #0B6E4F; --green-2: #0E8A63; --green-ink: #063D2C; --green-soft: #E7F5EF;
+    --sand: #F5E6C8; --paper: #FBF6EE; --ink: #1C1915; --muted: #5E564C; --line: #E0D0B0;
+    --card: #FFFCF7; --amber: #A86B1E; --shadow: 0 16px 40px rgba(28, 25, 21, .12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background: radial-gradient(900px 280px at 0% -10%, #fff 0%, transparent 55%), var(--sand);
+    line-height: 1.45;
+  }
+  body.is-pres { overflow: hidden; }
+  button, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, select:focus-visible { outline: 3px solid var(--green-2); outline-offset: 2px; }
+  .wrap {
+    max-width: 1140px; margin: 0 auto; padding: 18px 16px 28px;
+    min-height: 100%; display: flex; flex-direction: column;
+  }
+  body.is-pres .wrap { height: 100%; min-height: 0; padding-bottom: 0; }
+  body.is-pres footer.note { display: none; }
+  header.top { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; flex: none; }
+  .eyebrow { margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; color: var(--green); font-weight: 700; }
+  h1 { margin: 0; font-size: clamp(1.35rem, 2.4vw, 1.85rem); line-height: 1.15; color: var(--green-ink); }
+  .position { margin: 6px 0 0; font-size: 1.02rem; }
+  .slide {
+    background: #fff; border: 1px solid var(--line); border-radius: 20px;
+    padding: clamp(16px, 3vw, 28px); box-shadow: var(--shadow);
+  }
+  body.is-pres .slide {
+    height: 100%; min-height: 0; max-height: 100%;
+    overflow: auto; overscroll-behavior: contain;
+  }
+  .slide h2 { margin: 0 0 6px; font-size: clamp(1.3rem, 2vw, 1.7rem); color: var(--green-ink); }
+  .kicker { margin: 0 0 14px; color: var(--muted); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .card.green { background: var(--green); color: #fff; border-color: var(--green); }
+  .card.green p, .card.green li { color: #F5E6C8; }
+  .card.green h3 { color: #fff; }
+  .card ul, .slide ul { margin: 8px 0 0; padding-left: 1.1rem; }
+  .card li + li { margin-top: 4px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--sand); color: var(--green-ink); border-radius: 999px; padding: 3px 8px; margin-bottom: 6px; }
+  .card.green .tag { background: rgba(255,255,255,.18); color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 12px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; color: var(--green); }
+  pre.ascii { margin: 0; overflow: auto; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.35; background: var(--ink); color: var(--sand); padding: 14px 16px; border-radius: 14px; }
+  .steps { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 0; }
+  .step { display: grid; grid-template-columns: 36px 1fr; gap: 10px; align-items: start; background: var(--paper); border-radius: 12px; padding: 10px 12px; border: 1px solid var(--line); }
+  .num { width: 36px; height: 36px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; font-weight: 800; }
+  .step b { display: block; }
+  .step span { color: var(--muted); font-size: .92rem; }
+  .linkish { margin-top: 14px; border: 0; background: var(--green); color: #fff; border-radius: 999px; padding: 10px 14px; font-weight: 700; }
+  .arch { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .chain { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; justify-content: center; }
+  .node { background: #fff; border: 2px solid var(--green); border-radius: 14px; padding: 10px 12px; min-width: 120px; text-align: center; font-weight: 800; }
+  .node small { display: block; font-weight: 600; color: var(--muted); margin-top: 4px; }
+  .node.flutter { background: var(--green); color: #fff; min-width: 180px; }
+  .node.flutter small { color: var(--sand); }
+  .node.user { border-style: dashed; background: var(--sand); }
+  .arr { align-self: center; font-weight: 800; color: var(--green); font-size: 1.2rem; }
+  .side-note { color: var(--muted); font-size: .92rem; text-align: center; max-width: 680px; }
+  .mods { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .mods span { background: var(--green-soft); color: var(--green-ink); border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 700; }
+  .cost { display: grid; grid-template-columns: 1.2fr .8fr; gap: 12px; }
+  .big { font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 4px 0; color: var(--green); font-weight: 800; line-height: 1; }
+
+  .deck { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .deck[hidden] { display: none !important; }
+  body.is-pres .deck > .slide {
+    height: 100%; min-height: 0; max-height: 100%;
+    overflow: auto; overscroll-behavior: contain;
+  }
+  #view-pres {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    padding-bottom: 84px; /* réserve pour la barre fixe */
+  }
+  body.is-pres #view-pres .hint { display: none; }
+  .deck-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; transform: none;
+    z-index: 40; width: 100%; max-width: none;
+    display: grid; grid-template-columns: minmax(16px, 1fr) 132px minmax(0, 900px) auto 132px minmax(16px, 1fr);
+    gap: 8px; align-items: center;
+    background: rgba(251, 246, 238, .98); border: 0; border-top: 1px solid var(--line);
+    border-radius: 0; padding: 10px 16px; box-shadow: 0 -8px 24px rgba(28, 25, 21, .08);
+    backdrop-filter: blur(8px);
+  }
+  .nav-btn {
+    border: 0; background: var(--green); color: #fff; border-radius: 12px;
+    padding: 10px 14px; font-weight: 700; width: 132px; min-width: 132px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nav-btn:disabled { background: #C9C0B0; cursor: default; }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; grid-column: 4; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; border: 0; background: #D9CBB2; padding: 0; }
+  .dot.on { background: var(--green); transform: scale(1.25); }
+  #slide-status {
+    margin: 0; font-size: .85rem; color: var(--muted); text-align: center;
+    grid-column: 3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #btn-prev { grid-column: 2; }
+  #btn-next { grid-column: 5; justify-self: end; }
+  .hint { margin: 8px 0 0; font-size: .82rem; color: var(--muted); text-align: center; }
+  @media (max-width: 720px) {
+    .deck-nav {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    }
+    #slide-status { grid-column: 1 / -1; grid-row: 1; white-space: normal; }
+    .dots { grid-column: 1 / -1; grid-row: 2; }
+    #btn-prev { grid-column: 1; grid-row: 3; width: 100%; min-width: 0; }
+    #btn-next { grid-column: 2; grid-row: 3; width: 100%; min-width: 0; justify-self: stretch; }
+  
+  .deck { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .deck[hidden] { display: none !important; }
+  body.is-pres .deck > .slide {
+    height: 100%; min-height: 0; max-height: 100%;
+    overflow: auto; overscroll-behavior: contain;
+  }
+  #view-pres { padding-bottom: 132px; }
+  }
+  .sim { display: grid; grid-template-columns: 210px minmax(360px, 1fr) minmax(260px, 360px); gap: 14px; align-items: start; }
+  .side, .wa { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+  .side { padding: 12px; }
+  .side h2, .wa-head h2 { font-size: 1rem; margin: 0 0 8px; }
+  .side p, .help { color: var(--muted); font-size: .86rem; margin: 0 0 10px; }
+  .role { display: block; width: 100%; text-align: left; margin-bottom: 8px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--paper); padding: 10px; }
+  .role[aria-pressed="true"] { background: var(--green); color: #fff; border-color: var(--green); }
+  .role small { display: block; font-weight: 500; opacity: .85; }
+  .net { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--paper); border-radius: 12px; padding: 8px 10px; border: 1px solid var(--line); }
+  .switch { border: 0; border-radius: 999px; padding: 8px 12px; font-weight: 800; background: var(--green); color: #fff; }
+  .switch.off { background: var(--amber); color: #fff; }
+  .phone-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .phone-shell { width: 360px; height: 640px; background: #1A1714; border-radius: 40px; padding: 10px; box-shadow: var(--shadow), inset 0 0 0 2px #3A342C; flex: none; }
+  .phone-screen { height: 100%; background: var(--paper); border-radius: 30px; overflow: hidden; display: flex; flex-direction: column; position: relative; font-size: 14px; }
+  .statusbar, .appbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px 4px; }
+  .statusbar { font-size: 11px; color: var(--muted); padding-top: 10px; }
+  .pill { border: 0; border-radius: 999px; padding: 3px 8px; font-size: 10px; font-weight: 800; background: var(--green-soft); color: var(--green-ink); }
+  .pill.off { background: #F8E2C4; color: #7A4A0C; }
+  .appbar strong { display: block; font-size: 15px; }
+  .appbar small { color: var(--muted); }
+  .icon { width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; font-size: 22px; line-height: 1; color: var(--green-ink); }
+  .rail { display: flex; gap: 4px; padding: 0 12px 8px; }
+  .rail i { flex: 1; height: 3px; border-radius: 99px; background: #E4D5B8; display: block; }
+  .rail i.on { background: var(--green); }
+  .rail i.done { background: #8FCBB3; }
+  .phone-body { flex: 1; overflow: auto; padding: 4px 14px 18px; }
+  .phone-body h3 { margin: 4px 0; font-size: 1.15rem; }
+  .muted { color: var(--muted); }
+  .cta, .choice, .ghost { width: 100%; border-radius: 14px; padding: 12px 14px; font-weight: 700; }
+  .cta { display: block; border: 0; background: var(--green); color: #fff; margin-top: 8px; }
+  .ghost { display: block; border: 1.5px solid var(--green); background: transparent; color: var(--green-ink); margin-top: 8px; }
+  .cta:disabled, .ghost:disabled { opacity: .45; cursor: default; }
+  .choice { text-align: left; background: #fff; border: 1.5px solid var(--line); margin-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .choice.on { border-color: var(--green); background: var(--green-soft); }
+  .menucard { background: #fffdf8; border: 1px dashed #C4A46A; border-radius: 12px; padding: 10px 12px; font-family: "Segoe Print", "Bradley Hand", cursive; }
+  .menucard ul { list-style: none; padding: 0; margin: 6px 0; }
+  .menucard li { display: flex; justify-content: space-between; border-bottom: 1px dotted #E0D0B0; padding: 3px 0; }
+  .viewfinder { position: relative; background: #14110E; border-radius: 16px; height: 200px; display: grid; place-items: center; margin: 8px 0; }
+  .viewfinder .c { position: absolute; width: 22px; height: 22px; border: 3px solid var(--sand); }
+  .viewfinder .c1 { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+  .viewfinder .c2 { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+  .viewfinder .c3 { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+  .viewfinder .c4 { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+  .qrgrid { display: grid; grid-template-columns: repeat(var(--n), 1fr); width: 128px; height: 128px; background: #fff; padding: 6px; border-radius: 6px; }
+  .qrgrid i { display: block; aspect-ratio: 1; }
+  .qrgrid i.on { background: #1C1915; }
+  .order { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-top: 8px; }
+  .order .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 800; }
+  .toast { position: absolute; left: 16px; right: 16px; bottom: 14px; background: var(--ink); color: var(--sand); border-radius: 12px; padding: 10px 12px; font-size: 13px; box-shadow: var(--shadow); }
+  .strip { background: #F8E2C4; color: #7A4A0C; border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+  .wa { padding: 0; height: 640px; display: flex; flex-direction: column; overflow: hidden; background: #F3FAF6; }
+  .wa-head { padding: 12px; background: var(--green); color: #fff; }
+  .wa-head h2 { color: #fff; }
+  .wa-head p { margin: 0; color: var(--sand); font-size: .8rem; }
+  .wa-tools { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; align-items: center; }
+  .wa-tools button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+  #wa-log { overflow: auto; flex: 1; padding: 0 12px 16px; }
+  .bubble { background: #fff; border: 1px solid #D5E6DC; border-radius: 12px; padding: 8px 10px; margin: 8px 0; }
+  .bubble.in { background: #fff8ee; }
+  .bubble.sys { background: transparent; border: 0; text-align: center; color: var(--muted); font-size: 12px; }
+  .bubble .meta { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+  .chip { font-size: 10px; font-weight: 800; background: var(--sand); color: var(--green-ink); border-radius: 999px; padding: 2px 6px; }
+  .chip.q { background: #F8E2C4; color: #7A4A0C; }
+  .bubble p { margin: 0; font-size: 13px; }
+  .wa-btns { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .wa-btns span { border: 1px solid var(--green); color: var(--green); border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+  .queue-box { margin: 0 12px 8px; border: 1px dashed var(--amber); border-radius: 12px; padding: 8px; background: #fffaf3; }
+  .queue-box h3 { margin: 0 0 4px; font-size: .85rem; color: var(--amber); }
+  footer.note { margin-top: 18px; color: var(--muted); font-size: .86rem; border-top: 1px solid var(--line); padding-top: 10px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+  @media (max-width: 980px) {
+    .sim { grid-template-columns: 1fr; }
+    .wa { height: 480px; }
+    .grid-3, .grid-2, .cost { grid-template-columns: 1fr; }
+  }
+
+  /* Mobile (émulateur) : colonnes empilées, téléphone fluide, aucun scroll horizontal */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  html, body { overflow-x: hidden; max-width: 100%; }
+  .sim > * { min-width: 0; }
+  .phone-shell { width: min(360px, 100%); }
+  @media (max-width: 980px) {
+    .sim { grid-template-columns: minmax(0, 1fr); }
+    .phone-col { order: 2; }
+    .side { order: 1; }
+    .wa { order: 3; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 10px 10px 20px; }
+    header.top { margin-bottom: 10px; gap: 4px; }
+    h1 { font-size: 1.15rem; }
+    .position { font-size: .88rem; margin-top: 4px; }
+    .eyebrow { font-size: 10px; }
+    .sim { gap: 10px; }
+    .side { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 10px; }
+    .side > h2, .side > p, .side > .net, .side > .help, .side > #btn-restart { grid-column: 1 / -1; }
+    .side > p { margin: 0 0 2px; }
+    .role { margin: 0; padding: 8px 6px; text-align: center; font-size: .9rem; }
+    .role small { font-size: .7rem; }
+    .net { padding: 6px 8px; }
+    .switch { padding: 6px 10px; white-space: nowrap; }
+    .side .help { margin: 4px 0 0; font-size: .8rem; }
+    #btn-restart { margin-top: 2px; padding: 9px 12px; }
+    .phone-shell { height: clamp(500px, calc(100dvh - 40px), 640px); border-radius: 32px; padding: 8px; }
+    .phone-screen { border-radius: 24px; }
+    .wa { height: 440px; }
+    .wa-tools { flex-wrap: wrap; }
+  }
+  @media (max-width: 360px) {
+    .role small { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <p class="eyebrow">Sénégal · Dakar, Thiès, Ziguinchor, Kaolack, Saly et Mbour · Flutter</p>
+      <h1>App marchands-livreurs — simulation des parcours</h1>
+      <p class="position">WhatsApp = coque sociale, l’app = OS commande/livraison.</p>
+    </div>
+  </header>
+
+  <section id="view-sim" aria-label="Simulateur">
+    <div class="sim">
+      <aside class="side">
+        <h2>Rôle</h2>
+        <p>Même histoire (CMD-1842, Chez Awa) jouée de chaque côté. Un rôle ne bloque pas les autres.</p>
+        <button type="button" class="role" data-role="marchand" aria-pressed="true">Marchand<small>Awa · photo, commandes, QR, Wave</small></button>
+        <button type="button" class="role" data-role="livreur" aria-pressed="false">Livreur<small>Moussa · scan et états</small></button>
+        <button type="button" class="role" data-role="client" aria-pressed="false">Client<small>Fatou · boutique, audio, suivi</small></button>
+        <div class="net">
+          <div>
+            <strong>Réseau</strong>
+            <div class="muted" id="net-label" style="font-size:.8rem">En ligne</div>
+          </div>
+          <button type="button" class="switch" id="offline-toggle" aria-pressed="false">Hors ligne</button>
+        </div>
+        <p class="help" style="margin-top:10px">1. Choisir un rôle.<br>2. Avancer avec les boutons du téléphone.<br>3. Lire à droite ce que Meta enverrait.<br>4. Couper le réseau : la file se vide au retour.</p>
+        <button type="button" class="ghost" id="btn-restart" style="background:#fff">Recommencer ce rôle</button>
+      </aside>
+      <div class="phone-col">
+        <div class="phone-shell">
+          <div class="phone-screen" id="phone" aria-live="polite"></div>
+        </div>
+        <p class="hint">Cadre 360 × 640. Les pastilles sous l’en-tête montrent l’étape.</p>
+      </div>
+      <aside class="wa">
+        <div class="wa-head">
+          <h2>WhatsApp · journal</h2>
+          <p>Ce que Meta Cloud API enverrait ou recevrait (statuts, boutons, webhooks).</p>
+        </div>
+        <div class="wa-tools">
+          <span id="queue-label">File locale : 0</span>
+          <button type="button" id="btn-clear">Vider l’historique</button>
+        </div>
+        <div id="queue-box"></div>
+        <div id="wa-log"></div>
+        <p id="wa-live" class="sr-only" aria-live="polite"></p>
+      </aside>
+    </div>
+  </section>
+  <footer class="note">Prototype UX uniquement — pas une application de production. Simulation locale dans le navigateur : aucun envoi réseau, aucun paiement réel.</footer>
+</div>
+<script>
+(function () {
+  "use strict";
+  var MENU = [
+    { id: "td", name: "Thiébou dieune", price: 3500, group: "plat" },
+    { id: "yp", name: "Yassa poulet", price: 3000, group: "plat" },
+    { id: "fa", name: "Fataya (3 pièces)", price: 500, group: "plat" },
+    { id: "bi", name: "Bissap", price: 500, group: "boisson" },
+    { id: "bn", name: "Bouye", price: 500, group: "boisson" },
+    { id: "none", name: "Sans boisson", price: 0, group: "boisson" }
+  ];
+  var FLOWS = {
+    marchand: [["accueil","Accueil"],["photo","Photo carte menu"],["catalogue","Catalogue publié"],["commandes","Liste commandes"],["detail","Détail commande"],["qr","Partager QR course"],["paiement","Paiement Wave reçu"]],
+    livreur: [["scan","Scan QR"],["liee","Course liée"],["recup","À récupérer"],["route","En route"],["livre","Livré"]],
+    client: [["scan","Scan QR boutique"],["catalogue","Catalogue"],["commander","Commander"],["audio","Option audio"],["pay","Wave / OM"],["suivi","Suivi course"]]
+  };
+  var ROLE = { marchand: "Marchand", livreur: "Livreur", client: "Client" };
+  var TRACKS = [
+    ["Payée", "Chez Awa prépare. Recherche d’un livreur."],
+    ["À récupérer", "Moussa est au snack."],
+    ["En route", "Vers Sacré-Cœur 3, villa 14."],
+    ["Livrée", "Bon appétit."]
+  ];
+  function freshClient() { return { plat: "td", drink: "bi", qty: 1, audio: null, pay: null, track: 0 }; }
+  var seq = 1, toastTimer = 0;
+  var state = {
+    role: "marchand",
+    step: { marchand: 0, livreur: 0, client: 0 },
+    offline: false, queue: [], log: [], client: freshClient(),
+    refused: false, shared: false, toast: ""
+  };
+  function nowTime() { return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }
+  function fcfa(n) { return n.toLocaleString("fr-FR") + "\u00a0F"; }
+  function findItem(id) { for (var i = 0; i < MENU.length; i++) if (MENU[i].id === id) return MENU[i]; return MENU[0]; }
+  function clientTotal() { return findItem(state.client.plat).price * state.client.qty + findItem(state.client.drink).price; }
+  function clientSummary() {
+    var p = findItem(state.client.plat), d = findItem(state.client.drink);
+    var t = state.client.qty + " × " + p.name;
+    if (d.id !== "none") t += " + " + d.name;
+    return t;
+  }
+  function qrMarkup(seed) {
+    var n = 17, s = seed, html = "", y, x, finder, on;
+    for (y = 0; y < n; y++) {
+      for (x = 0; x < n; x++) {
+        finder = (x < 5 && y < 5) || (x > n - 6 && y < 5) || (x < 5 && y > n - 6);
+        s = (Math.imul(s, 1103515245) + 12345) & 0x7fffffff;
+        on = (finder && (x === 0 || y === 0 || x === 4 || y === 4 || x === n - 5 || y === n - 5 || x === n - 1 || y === n - 1))
+          || (finder && x % 4 === 2 && y % 4 === 2)
+          || (!finder && (s % 3 !== 0));
+        html += '<i class="' + (on ? "on" : "") + '"></i>';
+      }
+    }
+    return '<div class="qrgrid" style="--n:' + n + '" aria-hidden="true">' + html + "</div>";
+  }
+  function btn(action, label, cls, extra) {
+    return '<button type="button" class="' + (cls || "cta") + '" data-action="' + action + '"' + (extra || "") + ">" + label + "</button>";
+  }
+  function pushWa(list) {
+    var live = [];
+    list.forEach(function (m) {
+      var row = {
+        id: seq++, time: nowTime(), dir: m.dir, to: m.to, kind: m.kind, name: m.name,
+        body: m.body, buttons: m.buttons || null, queued: state.offline && m.dir !== "sys"
+      };
+      if (row.queued) state.queue.push(row); else state.log.push(row);
+      live.push(m.body);
+    });
+    var dest = document.getElementById("wa-live");
+    if (dest) dest.textContent = live.join(" ");
+  }
+  function flash(text) {
+    state.toast = text;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { state.toast = ""; renderPhone(); }, 2600);
+  }
+  function setOffline(next) {
+    if (next === state.offline) return;
+    state.offline = next;
+    if (!next && state.queue.length) {
+      var n = state.queue.length, t = nowTime();
+      state.queue.forEach(function (m) { m.queued = false; m.synced = t; state.log.push(m); });
+      state.queue = [];
+      state.log.push({ id: seq++, time: t, dir: "sys", body: "Sync idempotente · " + n + " message" + (n > 1 ? "s" : "") + " partis vers le backend puis Meta Cloud API. Aucun doublon." });
+      flash("Synchronisé · " + n + " envoi" + (n > 1 ? "s" : ""));
+      document.getElementById("wa-live").textContent = "Synchronisé, " + n + " messages.";
+    } else if (next) flash("Hors ligne · les prochains envois restent en file");
+    else flash("Réseau rétabli · file vide");
+    renderSim();
+  }
+  function resetRole(role) {
+    state.step[role] = 0;
+    if (role === "client") state.client = freshClient();
+    if (role === "marchand") { state.refused = false; state.shared = false; }
+    pushWa([{ dir: "sys", body: "Parcours " + ROLE[role] + " recommencé." }]);
+    renderSim();
+  }
+  function jumpRole(role) { state.role = role; renderSim(); }
+
+  function choice(action, id, name, price, on) {
+    var right = price === null ? "" : "<b>" + (price ? fcfa(price) : "—") + "</b>";
+    return '<button type="button" class="choice' + (on ? " on" : "") + '" data-action="' + action + '" data-id="' + id + '"><span>' + name + "</span>" + right + "</button>";
+  }
+  function menuCard() {
+    return '<div class="menucard"><strong>Snack Chez Awa</strong><div class="muted">Médina · Dakar</div><ul>' +
+      "<li><span>Thiébou dieune</span><b>3&nbsp;500</b></li>" +
+      "<li><span>Yassa poulet</span><b>3&nbsp;000</b></li>" +
+      "<li><span>Fataya ×3</span><b>500</b></li>" +
+      "<li><span>Bissap / bouye</span><b>500</b></li></ul>" +
+      '<div class="muted">Photo de la carte · pas d’IA</div></div>';
+  }
+  function viewfinder(seed) {
+    return '<div class="viewfinder"><span class="c c1"></span><span class="c c2"></span><span class="c c3"></span><span class="c c4"></span>' + qrMarkup(seed) + "</div>";
+  }
+  function screenMarchand(key) {
+    if (key === "accueil") {
+      return "<h3>Bonjour Awa</h3><p class=\"muted\">Snack Chez Awa · Médina. Aujourd’hui : aucune commande en cours.</p>" +
+        '<div class="order"><div class="top"><span>Offre</span><span>pas en ligne</span></div><p class="muted">Une photo de la carte suffit pour ouvrir la boutique.</p></div>' +
+        btn("next", "Photographier la carte");
+    }
+    if (key === "photo") return "<h3>Cadrez toute la carte</h3><p class=\"muted\">Pas besoin de saisir les plats un par un.</p>" + viewfinder(42) + btn("next", "Prendre la photo");
+    if (key === "catalogue") return "<h3>Carte en ligne</h3>" + menuCard() + '<p class="muted">Lien boutique (QR C) prêt. Une commande démo arrive : Fatou, CMD-1842.</p>' + btn("next", "Voir les commandes");
+    if (key === "commandes") {
+      return "<h3>Commandes</h3>" +
+        '<div class="order"><div class="top"><span>CMD-1842</span><span>4&nbsp;000&nbsp;F</span></div><div>Fatou Sarr · à traiter</div><div class="muted">Thiébou dieune + bissap · audio 0:04</div></div>' +
+        '<div class="order" style="opacity:.6"><div class="top"><span>CMD-1830</span><span>Livrée</span></div><div class="muted">Hier · Yassa</div></div>' +
+        btn("next", "Ouvrir CMD-1842");
+    }
+    if (key === "detail") {
+      if (state.refused) return "<h3>Commande refusée</h3><p>Fatou est prévenue sur WhatsApp. Vous pouvez attendre une autre commande.</p>" + btn("undo-refuse", "Retour aux commandes");
+      return "<h3>CMD-1842</h3><div class=\"order\"><div class=\"top\"><span>Fatou · Sacré-Cœur 3</span><span>4&nbsp;000&nbsp;F</span></div>" +
+        "<p>1 × Thiébou dieune<br>1 × Bissap</p><p class=\"muted\">Construit avec des boutons, pas un texte libre.</p>" +
+        "<p><strong>Audio 0:04</strong> — « Sans piment, s’il vous plaît. »</p></div>" +
+        btn("accept", "Accepter") + btn("refuse", "Refuser", "ghost");
+    }
+    if (key === "qr") {
+      return "<h3>QR course · type A</h3><p class=\"muted\">COURSE-A-1842 · expire dans 45 min. Médina → Sacré-Cœur 3.</p>" +
+        '<div style="display:grid;place-items:center;margin:8px 0">' + qrMarkup(1842) + "</div>" +
+        '<p class="muted">Le livreur scanne ce code. Ce n’est pas un numéro WhatsApp partagé.</p>' +
+        btn("share", state.shared ? "Lien déjà envoyé au livreur" : "Envoyer le lien au livreur", "ghost", state.shared ? " disabled" : "") +
+        btn("next", "Voir le paiement Wave");
+    }
+    return "<h3>Paiement reçu</h3><div class=\"order\"><div class=\"top\"><span>Wave</span><span>Payé</span></div>" +
+      "<p>4&nbsp;000&nbsp;F · frais 0<br>Réf. WV-9F2A1842<br>CMD-1842 · Chez Awa</p>" +
+      '<p class="muted">Orange Money aurait le même statut sur la commande.</p></div>' +
+      "<p><strong>Fin du parcours marchand.</strong></p>" +
+      btn("restart", "Recommencer") + btn("switch-livreur", "Enchaîner avec le livreur", "ghost");
+  }
+  function screenLivreur(key) {
+    if (key === "scan") return "<h3>Scanner le QR course</h3><p class=\"muted\">Moussa Diallo · +221 77 555 01 02</p>" + viewfinder(1842) + '<p class="muted">Pointez COURSE-A-1842 (Chez Awa).</p>' + btn("next", "Scanner le QR");
+    if (key === "liee") return "<h3>Course liée</h3><div class=\"order\"><div class=\"top\"><span>CMD-1842</span><span>4&nbsp;000&nbsp;F</span></div><p>Chez Awa · Médina, rue 22 × 31<br>Client : Fatou · Sacré-Cœur 3</p><p class=\"muted\">Attribution : QR partagé par le marchand. Vous entrez dans son réseau.</p></div>" + btn("next", "Aller récupérer");
+    if (key === "recup") return "<h3>Au point de remise</h3><p>Le colis n’est pas encore pris. Le marchand voit « à récupérer ».</p><div class=\"order\"><strong>1 × Thiébou dieune + bissap</strong><div class=\"muted\">Remise comptoir · Médina</div></div>" + btn("next", "C’est pris · en route");
+    if (key === "route") return "<h3>Vers Sacré-Cœur 3</h3><p>Villa 14. Fatou suit la course dans l’app et sur WhatsApp.</p><div class=\"order\">État tracé : en route. Pas seulement un appel.</div>" + btn("next", "Marquer livré");
+    return "<h3>Livré</h3><div class=\"order\"><div class=\"top\"><span>CMD-1842</span><span>Terminée</span></div><p>Remis à Fatou. Chez Awa et la cliente sont notifiées.</p></div><p><strong>Fin du parcours livreur.</strong></p>" + btn("restart", "Recommencer") + btn("switch-client", "Enchaîner avec le client", "ghost");
+  }
+  function screenClient(key) {
+    var c = state.client;
+    if (key === "scan") return "<h3>QR boutique</h3><p class=\"muted\">Type C · Chez Awa. Pas de long formulaire.</p>" + viewfinder(77) + btn("next", "Scanner le QR boutique");
+    if (key === "catalogue") return "<h3>Chez Awa</h3>" + menuCard() + btn("next", "Commander");
+    if (key === "commander") {
+      var plats = MENU.filter(function (m) { return m.group === "plat"; }).map(function (m) { return choice("plat", m.id, m.name, m.price, c.plat === m.id); }).join("");
+      var drinks = MENU.filter(function (m) { return m.group === "boisson"; }).map(function (m) { return choice("drink", m.id, m.name, m.price, c.drink === m.id); }).join("");
+      return "<h3>Boutons et listes</h3><p class=\"muted\">Comme un message interactif WhatsApp. Aucune saisie libre.</p>" +
+        "<p><strong>Liste · plat</strong></p>" + plats +
+        "<p><strong>Quantité</strong></p>" +
+        '<div class="order" style="display:flex;justify-content:space-between;align-items:center"><span>' + c.qty + '</span><span>' +
+        '<button type="button" class="ghost" style="width:auto;display:inline-block;margin:0 4px" data-action="qty" data-dir="-1">−</button>' +
+        '<button type="button" class="ghost" style="width:auto;display:inline-block;margin:0" data-action="qty" data-dir="1">+</button></span></div>' +
+        "<p><strong>Liste · boisson</strong></p>" + drinks +
+        '<div class="order"><div class="top"><span>Total</span><span>' + fcfa(clientTotal()) + '</span></div><div class="muted">' + clientSummary() + "</div></div>" +
+        btn("next", "Valider sans texte libre");
+    }
+    if (key === "audio") {
+      return "<h3>Un vocal, si vous voulez</h3><p class=\"muted\">Optionnel. Le marchand l’écoute. Pas de transcription dans cette version.</p>" +
+        '<div class="order">▮▮ ▮▮▮ ▮ ▮▮▮▮ ▮▮<br><span class="muted">Exemple : « Sans piment, s’il vous plaît. » · 0:04</span></div>' +
+        btn("audio-send", "Envoyer cet audio") + btn("audio-skip", "Continuer sans audio", "ghost");
+    }
+    if (key === "pay") {
+      if (c.pay) {
+        var rail = c.pay === "wave" ? "Wave" : "Orange Money";
+        var ref = c.pay === "wave" ? "WV-9F2A1842" : "OM-441902";
+        return "<h3>Paiement confirmé</h3><div class=\"order\"><div class=\"top\"><span>" + rail + "</span><span>" + fcfa(clientTotal()) + "</span></div><p>Réf. " + ref + "<br>" + clientSummary() + (c.audio ? "<br>Audio joint" : "<br>Sans audio") + "</p></div>" + btn("next", "Suivre la course");
+      }
+      return "<h3>Payer " + fcfa(clientTotal()) + "</h3><p class=\"muted\">" + clientSummary() + "</p>" +
+        choice("pay-pick", "wave", "Wave", null, true) + choice("pay-pick", "om", "Orange Money", null, false) +
+        '<p class="muted">Le checkout est dans l’app (API Wave ou Orange Money), pas seulement un lien collé dans le chat.</p>' +
+        btn("pay-wave", "Payer avec Wave") + btn("pay-om", "Payer avec Orange Money", "ghost");
+    }
+    var rows = TRACKS.map(function (tk, i) {
+      var mark = i < c.track ? "✓" : (i === c.track ? "●" : "○");
+      return '<div class="step"' + (i > c.track ? ' style="opacity:.45"' : "") + '><div class="num">' + mark + "</div><div><b>" + tk[0] + "</b><span>" + tk[1] + "</span></div></div>";
+    }).join("");
+    var end = c.track >= TRACKS.length - 1;
+    return "<h3>Suivi</h3><div class=\"steps\">" + rows + "</div>" +
+      (end ? "<p><strong>Fin du parcours client.</strong></p>" + btn("restart", "Recommencer") + btn("switch-marchand", "Revoir le marchand", "ghost") : btn("track", "Étape suivante du livreur"));
+  }
+
+  function renderPhone() {
+    var flow = FLOWS[state.role];
+    var idx = state.step[state.role];
+    var key = flow[idx][0];
+    var label = flow[idx][1];
+    var rail = flow.map(function (_, i) {
+      return '<i class="' + (i < idx ? "done" : i === idx ? "on" : "") + '"></i>';
+    }).join("");
+    var body = state.role === "marchand" ? screenMarchand(key) : state.role === "livreur" ? screenLivreur(key) : screenClient(key);
+    var offlineNote = state.offline ? '<div class="strip">Hors ligne · ' + state.queue.length + " en file · l’écran avance quand même</div>" : "";
+    var back = idx > 0 ? '<button type="button" class="icon" data-action="back" aria-label="Écran précédent">‹</button>' : '<span class="icon"></span>';
+    document.getElementById("phone").innerHTML =
+      '<div class="statusbar"><span>' + nowTime() + ' · Dakar</span>' +
+      '<button type="button" class="pill' + (state.offline ? " off" : "") + '" data-action="toggle-offline">' +
+      (state.offline ? "Hors ligne" + (state.queue.length ? " · " + state.queue.length : "") : "En ligne") + "</button></div>" +
+      '<div class="appbar">' + back + '<div style="flex:1"><strong>' + label + "</strong><small>" + ROLE[state.role] + " · " + (idx + 1) + "/" + flow.length + "</small></div></div>" +
+      '<div class="rail">' + rail + '</div><div class="phone-body">' + offlineNote + body + "</div>" +
+      (state.toast ? '<div class="toast">' + state.toast + "</div>" : "");
+  }
+  function bubble(m) {
+    if (m.dir === "sys") return '<div class="bubble sys">' + m.body + "</div>";
+    var chips = '<span class="chip">' + (m.dir === "in" ? "webhook ← WA" : "API → WA") + "</span>";
+    chips += '<span class="chip">' + m.kind + "</span>";
+    if (m.name) chips += '<span class="chip">' + m.name + "</span>";
+    if (m.queued) chips += '<span class="chip q">en file</span>';
+    else if (m.synced) chips += '<span class="chip q">synchronisé ' + m.synced + "</span>";
+    else chips += '<span class="chip">envoyé ' + m.time + "</span>";
+    if (m.kind === "template") chips += '<span class="chip">utilitaire · ~2&nbsp;F</span>';
+    var btns = m.buttons ? '<div class="wa-btns">' + m.buttons.map(function (b) { return "<span>" + b + "</span>"; }).join("") + "</div>" : "";
+    return '<div class="bubble ' + m.dir + '"><div class="meta">' + chips + '</div><div class="muted" style="font-size:11px;margin-bottom:4px">' +
+      m.to + " · " + m.time + "</div><p>" + m.body + "</p>" + btns + "</div>";
+  }
+  function renderLog() {
+    document.getElementById("queue-label").textContent = "File locale : " + state.queue.length;
+    var box = document.getElementById("queue-box");
+    box.innerHTML = state.queue.length ? '<div class="queue-box"><h3>En attente de réseau</h3>' + state.queue.map(bubble).join("") + "</div>" : "";
+    var log = document.getElementById("wa-log");
+    log.innerHTML = state.log.map(bubble).join("") || '<div class="bubble sys">Les messages apparaîtront ici.</div>';
+    log.scrollTop = log.scrollHeight;
+    var toggle = document.getElementById("offline-toggle");
+    toggle.classList.toggle("off", state.offline);
+    toggle.setAttribute("aria-pressed", state.offline ? "true" : "false");
+    toggle.textContent = state.offline ? "Remettre en ligne" : "Hors ligne";
+    document.getElementById("net-label").textContent = state.offline ? "Hors ligne · file " + state.queue.length : "En ligne";
+    document.querySelectorAll(".role").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-role") === state.role ? "true" : "false");
+    });
+  }
+  function renderSim() { renderPhone(); renderLog(); }
+  function advance(messages) {
+    if (messages && messages.length) pushWa(messages);
+    state.step[state.role] += 1;
+    renderSim();
+  }
+
+  function act(name, el) {
+    var role = state.role;
+    var key = FLOWS[role][state.step[role]][0];
+    if (name === "toggle-offline") { setOffline(!state.offline); return; }
+    if (name === "restart") { resetRole(role); return; }
+    if (name === "back") {
+      if (state.step[role] > 0) state.step[role] -= 1;
+      if (role === "marchand") state.refused = false;
+      renderPhone();
+      return;
+    }
+    if (name === "switch-livreur") { jumpRole("livreur"); return; }
+    if (name === "switch-client") { jumpRole("client"); return; }
+    if (name === "switch-marchand") { jumpRole("marchand"); return; }
+    if (role === "client" && key === "commander" && name === "plat") { state.client.plat = el.getAttribute("data-id"); renderPhone(); return; }
+    if (role === "client" && key === "commander" && name === "drink") { state.client.drink = el.getAttribute("data-id"); renderPhone(); return; }
+    if (role === "client" && key === "commander" && name === "qty") {
+      state.client.qty = Math.max(1, Math.min(9, state.client.qty + Number(el.getAttribute("data-dir"))));
+      renderPhone(); return;
+    }
+    if (role === "marchand" && key === "accueil") {
+      advance([{ dir: "out", to: "Marchand · Awa", kind: "session", name: "aide_photo", body: "Cadrez la carte entière. Inutile de taper les plats." }]); return;
+    }
+    if (role === "marchand" && key === "photo") {
+      advance([{ dir: "out", to: "Marchand · Awa", kind: "template", name: "catalogue_publie", body: "Votre carte est en ligne (Chez Awa). Le lien boutique est prêt.", buttons: ["Ouvrir", "Partager"] }]); return;
+    }
+    if (role === "marchand" && key === "catalogue") {
+      advance([
+        { dir: "in", to: "App · webhook", kind: "webhook", name: "interactive_reply", body: "Commande de Fatou (+221 78 333 90 11) : Thiébou dieune + bissap." },
+        { dir: "out", to: "Marchand · Awa", kind: "template", name: "commande_nouvelle", body: "CMD-1842 · 4 000 F · Thiébou dieune + bissap. Audio 0:04.", buttons: ["Accepter", "Refuser"] }
+      ]); return;
+    }
+    if (role === "marchand" && key === "commandes") { advance([]); return; }
+    if (role === "marchand" && key === "detail" && name === "accept") {
+      state.refused = false;
+      advance([
+        { dir: "out", to: "Cliente · Fatou", kind: "interactive", name: "commande_acceptee", body: "Chez Awa a accepté CMD-1842. Vous serez prévenue à chaque étape.", buttons: ["Voir le suivi"] },
+        { dir: "out", to: "Marchand · Awa", kind: "template", name: "course_prete", body: "Générez le QR course A. Valable 45 minutes." }
+      ]); return;
+    }
+    if (role === "marchand" && key === "detail" && name === "refuse") {
+      state.refused = true;
+      pushWa([{ dir: "out", to: "Cliente · Fatou", kind: "session", name: "commande_refusee", body: "Chez Awa ne peut pas prendre CMD-1842 pour le moment." }]);
+      flash(state.offline ? "Refus enregistré en file" : "Fatou est prévenue");
+      renderSim(); return;
+    }
+    if (role === "marchand" && key === "detail" && name === "undo-refuse") {
+      state.refused = false; state.step.marchand = 3; renderPhone(); return;
+    }
+    if (role === "marchand" && key === "qr" && name === "share") {
+      if (state.shared) return;
+      state.shared = true;
+      pushWa([{ dir: "out", to: "Livreur (lien)", kind: "template", name: "course_qr", body: "Course A · CMD-1842 · Médina → Sacré-Cœur 3 · 4 000 F. Expire dans 45 min.", buttons: ["Ouvrir la course"] }]);
+      flash(state.offline ? "Lien mis en file" : "Lien course envoyé");
+      renderSim(); return;
+    }
+    if (role === "marchand" && key === "qr" && name === "next") {
+      if (!state.shared) {
+        state.shared = true;
+        pushWa([{ dir: "out", to: "Livreur (lien)", kind: "template", name: "course_qr", body: "QR course A publié pour CMD-1842." }]);
+      }
+      advance([
+        { dir: "in", to: "App · webhook Wave", kind: "webhook", name: "checkout.completed", body: "Wave · 4 000 F · réf. WV-9F2A1842 · statut succeeded." },
+        { dir: "out", to: "Marchand · Awa", kind: "template", name: "paiement_recu", body: "Wave a crédité 4 000 F pour CMD-1842." },
+        { dir: "out", to: "Cliente · Fatou", kind: "template", name: "paiement_ok", body: "Paiement reçu par Chez Awa. La course peut partir." }
+      ]); return;
+    }
+    if (role === "livreur" && key === "scan") {
+      advance([
+        { dir: "in", to: "App · webhook", kind: "webhook", name: "qr.scan", body: "Scan COURSE-A-1842 par Moussa (+221 77 555 01 02)." },
+        { dir: "out", to: "Marchand · Awa", kind: "template", name: "course_liee", body: "Moussa est lié à CMD-1842." },
+        { dir: "out", to: "Livreur · Moussa", kind: "session", name: "course_detail", body: "Course liée · Chez Awa · Médina. Attribution : QR du marchand." }
+      ]); return;
+    }
+    if (role === "livreur" && key === "liee") {
+      advance([{ dir: "out", to: "Marchand + cliente", kind: "template", name: "statut_course", body: "CMD-1842 · à récupérer. Moussa va au snack.", buttons: ["Voir"] }]); return;
+    }
+    if (role === "livreur" && key === "recup") {
+      advance([{ dir: "out", to: "Marchand + cliente", kind: "template", name: "statut_course", body: "CMD-1842 · en route vers Sacré-Cœur 3." }]); return;
+    }
+    if (role === "livreur" && key === "route") {
+      advance([
+        { dir: "out", to: "Cliente · Fatou", kind: "template", name: "livre", body: "Livré. Bon appétit — Chez Awa.", buttons: ["Merci"] },
+        { dir: "out", to: "Marchand · Awa", kind: "template", name: "livre", body: "CMD-1842 livrée par Moussa." }
+      ]); return;
+    }
+    if (role === "client" && key === "scan") {
+      advance([{ dir: "out", to: "Cliente · Fatou", kind: "interactive", name: "bienvenue_boutique", body: "Bienvenue chez Awa. Commandez avec les boutons, sans rédiger de message.", buttons: ["Voir le menu", "Commander"] }]); return;
+    }
+    if (role === "client" && key === "catalogue") { advance([]); return; }
+    if (role === "client" && key === "commander" && name === "next") {
+      advance([
+        { dir: "in", to: "App · webhook", kind: "webhook", name: "list_reply", body: "Sélection Fatou : " + clientSummary() + " · " + fcfa(clientTotal()) + "." },
+        { dir: "out", to: "Marchand · Awa", kind: "session", name: "panier", body: "Panier structuré (boutons / listes) : " + clientSummary() + " · " + fcfa(clientTotal()) + "." }
+      ]); return;
+    }
+    if (role === "client" && key === "audio" && name === "audio-send") {
+      state.client.audio = true;
+      advance([
+        { dir: "in", to: "App · média", kind: "media", name: "audio", body: "Audio 0:04 reçu de Fatou. Pas de transcription (MVP)." },
+        { dir: "out", to: "Marchand · Awa", kind: "media", name: "audio_client", body: "Message vocal de Fatou sur la commande." }
+      ]); return;
+    }
+    if (role === "client" && key === "audio" && name === "audio-skip") {
+      state.client.audio = false;
+      advance([{ dir: "out", to: "Marchand · Awa", kind: "session", name: "sans_audio", body: "Commande Fatou sans audio." }]); return;
+    }
+    if (role === "client" && key === "pay" && (name === "pay-wave" || name === "pay-om")) {
+      state.client.pay = name === "pay-wave" ? "wave" : "om";
+      var rail = state.client.pay === "wave" ? "Wave" : "Orange Money";
+      var ref = state.client.pay === "wave" ? "WV-9F2A1842" : "OM-441902";
+      pushWa([
+        { dir: "out", to: rail + " Business", kind: "session", name: "checkout.create", body: "Session " + rail + " · " + fcfa(clientTotal()) + " · Chez Awa." },
+        { dir: "in", to: "App · webhook " + rail, kind: "webhook", name: "checkout.completed", body: rail + " · " + fcfa(clientTotal()) + " · réf. " + ref + " · succeeded." },
+        { dir: "out", to: "Cliente · Fatou", kind: "template", name: "paiement_ok", body: "Paiement " + rail + " confirmé (" + fcfa(clientTotal()) + ")." },
+        { dir: "out", to: "Marchand · Awa", kind: "template", name: "paiement_recu", body: rail + " · " + fcfa(clientTotal()) + " crédités." }
+      ]);
+      flash(state.offline ? "Paiement en file" : "Paiement " + rail + " confirmé");
+      renderSim(); return;
+    }
+    if (role === "client" && key === "pay" && name === "next" && state.client.pay) { advance([]); return; }
+    if (role === "client" && key === "suivi" && name === "track") {
+      if (state.client.track >= TRACKS.length - 1) return;
+      state.client.track += 1;
+      pushWa([{ dir: "out", to: "Cliente · Fatou", kind: "template", name: "statut_course", body: "Suivi Chez Awa · " + TRACKS[state.client.track][0] + ". " + TRACKS[state.client.track][1] }]);
+      renderSim();
+    }
+  }
+  function init() {
+    state.log.push({ id: seq++, time: nowTime(), dir: "sys", body: "Journal local. Rien ne quitte cette page. Les pastilles template rappellent le coût utilitaire (~2 F)." });
+    document.querySelector(".side").addEventListener("click", function (e) {
+      var r = e.target.closest("[data-role]");
+      if (!r) return;
+      state.role = r.getAttribute("data-role");
+      renderSim();
+    });
+    document.getElementById("offline-toggle").addEventListener("click", function () { setOffline(!state.offline); });
+    document.getElementById("btn-restart").addEventListener("click", function () { resetRole(state.role); });
+    document.getElementById("btn-clear").addEventListener("click", function () {
+      state.log = [{ id: seq++, time: nowTime(), dir: "sys", body: "Historique vidé. La file hors-ligne, s’il y en a une, est conservée." }];
+      renderLog();
+    });
+    document.getElementById("phone").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-action]");
+      if (!b || b.disabled) return;
+      act(b.getAttribute("data-action"), b);
+    });
+    var h = (location.hash || "").replace("#", "");
+    if (ROLE[h]) state.role = h;
+    window.addEventListener("hashchange", function () {
+      var r = (location.hash || "").replace("#", "");
+      if (ROLE[r]) { state.role = r; renderSim(); }
+    });
+    renderSim();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+
+</script>
+</body>
+</html>
